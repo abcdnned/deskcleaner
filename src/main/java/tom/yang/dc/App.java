@@ -34,7 +34,8 @@ public class App
         options.addOption(dir);
         final CommandLineParser parser = new DefaultParser();
         final CommandLine line = parser.parse(options, args);
-        final int days = Integer.valueOf(line.getOptionValue("T"));
+        final long days = Long.valueOf(line.getOptionValue("T"));
+        System.out.println("delete files older than " + days + "days");
         final File f = new File(line.getOptionValue("D"));
         if (f.isDirectory() && f.exists()) {
             File[] files = f.listFiles();
@@ -45,13 +46,13 @@ public class App
         }
     }
     
-    static boolean oldEnough(File f,int days){
-        final long delta = days * 24 * 3600 * 1000;
+    static boolean oldEnough(File f,long days){
+        final long delta = days * 24l * 3600l * 1000l;
         final long currTime = System.currentTimeMillis();
         return currTime - f.lastModified() > delta;
     }
     
-    public static void deleteFileOrFolder(final Path path,final int days) throws IOException {
+    public static void deleteFileOrFolder(final Path path,final long days) throws IOException {
         Files.walkFileTree(path, new SimpleFileVisitor<Path>(){
           @Override public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
             throws IOException {
@@ -68,12 +69,26 @@ public class App
             return FileVisitResult.TERMINATE;
           }
           
-          private void handle(Path file, int days) throws IOException{
+          private void handle(Path file, long days) throws IOException{
               if(oldEnough(file.toFile(), days)){
-                  System.out.println("delete file : " + file.getFileName());
-                  Files.delete(file);
+                  deleteDirectory(file.toFile());
               }
           }
+
+          private boolean deleteDirectory(File dir) { 
+              if (dir.isDirectory()) {
+                  File[] children = dir.listFiles();
+                  for (int i = 0; i < children.length; i++) {
+                      boolean success = deleteDirectory(children[i]);
+                      if (!success) { return false;
+                      }
+                  }
+              }
+              // either file or an empty directory
+              System.out.println("removing file or directory : " + dir.getName());
+              return dir.delete();
+          }
+
 
           @Override public FileVisitResult postVisitDirectory(final Path dir, final IOException e)
             throws IOException {
